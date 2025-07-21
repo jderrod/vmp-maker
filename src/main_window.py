@@ -13,16 +13,38 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
 
 class MainWindow(tk.Tk):
-    """Main window for the VMP application."""
-    def __init__(self):
+    """Main window for creating and editing Visual Manufacturing Procedures."""
+    
+    def __init__(self, home_window=None, project_file=None, export_only=False):
         super().__init__()
         self.title("Visual Manufacturing Procedures")
         self.geometry("900x700") # Increased window size for larger content
 
+        self.home_window = home_window
+        self.project_file = project_file
+        self.project_name = None
+        
         self.pages = [Page()]
         self.current_page_index = 0
         self.bullet_entries = []
+        self.image_placeholders = []
+        self.select_image_buttons = []
 
+        if not export_only:
+            self.setup_ui()
+            
+            # Load project if specified
+            if project_file:
+                self.load_project(project_file)
+        else:
+            # For export-only mode, just load the project data
+            if project_file:
+                self.load_project(project_file)
+
+        self.show_page()
+
+    def setup_ui(self):
+        """Set up the user interface."""
         # Main container frame
         main_frame = tk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -31,26 +53,47 @@ class MainWindow(tk.Tk):
         self.content_container = tk.Frame(main_frame)
         self.content_container.pack(expand=True)
 
-        # Controls Frame
-        controls_frame = tk.Frame(self)
-        controls_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Navigation and Export buttons
+        nav_frame = tk.Frame(self)
+        nav_frame.pack(fill='x', padx=10, pady=5)
 
-        self.prev_button = tk.Button(controls_frame, text="Previous Page", command=self.prev_page)
-        self.prev_button.pack(side=tk.LEFT)
+        # Left side buttons
+        left_buttons = tk.Frame(nav_frame)
+        left_buttons.pack(side=tk.LEFT)
+        
+        if self.home_window:
+            home_button = tk.Button(left_buttons, text="← Home", command=self.return_to_home,
+                                   bg='#95a5a6', fg='white')
+            home_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.prev_button = tk.Button(left_buttons, text="Previous Page", command=self.prev_page)
+        self.prev_button.pack(side=tk.LEFT, padx=5)
 
-        self.page_label = tk.Label(controls_frame, text="")
-        self.page_label.pack(side=tk.LEFT, expand=True)
+        self.next_button = tk.Button(left_buttons, text="Next Page", command=self.next_page)
+        self.next_button.pack(side=tk.LEFT, padx=5)
 
-        self.next_button = tk.Button(controls_frame, text="Next Page", command=self.next_page)
-        self.next_button.pack(side=tk.RIGHT)
+        self.add_page_button = tk.Button(left_buttons, text="Add Page", command=self.add_page)
+        self.add_page_button.pack(side=tk.LEFT, padx=5)
+        
+        # Page label in the center
+        self.page_label = tk.Label(nav_frame, text="", font=("Arial", 10))
+        self.page_label.pack(expand=True)
 
-        add_page_button = tk.Button(controls_frame, text="Add Page", command=self.add_page)
-        add_page_button.pack(side=tk.RIGHT, padx=5)
+        # Right side buttons
+        right_buttons = tk.Frame(nav_frame)
+        right_buttons.pack(side=tk.RIGHT)
+        
+        if self.home_window:
+            save_button = tk.Button(right_buttons, text="Save Project", command=self.save_project,
+                                   bg='#2ecc71', fg='white')
+            save_button.pack(side=tk.RIGHT, padx=5)
 
-        export_button = tk.Button(controls_frame, text="Export to PDF", command=self.export_to_pdf)
-        export_button.pack(side=tk.RIGHT)
-
-        self.show_page()
+        self.export_button = tk.Button(right_buttons, text="Export to PDF", command=self.export_to_pdf,
+                                      bg='#e74c3c', fg='white')
+        self.export_button.pack(side=tk.RIGHT, padx=5)
+        
+        # Initialize navigation
+        self.update_navigation()
 
     def show_page(self):
         """Displays the current page's content."""
@@ -103,25 +146,33 @@ class MainWindow(tk.Tk):
         self.update_navigation()
 
     def show_image(self, container, image_path):
-        """Loads and displays a dynamically resized image in a given container."""
-        # This event is triggered when the container (placeholder) is resized
-        def on_configure(event):
-            try:
-                # Get container size
-                w, h = event.width, event.height
+        """Loads and displays an image with a fixed size for stability."""
+        # Clear any existing content
+        for widget in container.winfo_children():
+            if isinstance(widget, tk.Label) and hasattr(widget, 'image'):
+                widget.destroy()
+        
+        try:
+            if not image_path:
+                container.config(text="No Image", bg='lightgrey', fg='black')
+                return
+                
+            img = Image.open(image_path)
+            # Use a fixed size that works well in the layout
+            img.thumbnail((300, 200), Image.Resampling.LANCZOS)
+            photo_img = ImageTk.PhotoImage(img)
 
-                if w <= 1 or h <= 1: return # Avoid processing tiny sizes
-
-                img = Image.open(image_path)
-                img.thumbnail((w - 10, h - 40), Image.Resampling.LANCZOS) # Resize to fit, leaving space for button
-                photo_img = ImageTk.PhotoImage(img)
-
-                container.config(image=photo_img)
-                container.image = photo_img # Keep a reference!
-            except Exception as e:
-                container.config(text=f"Invalid Image\n{e}", bg='red', fg='white')
-
-        container.bind('<Configure>', on_configure)
+            # Create a label to hold the image
+            image_label = tk.Label(container, image=photo_img, bg='lightgrey')
+            image_label.image = photo_img  # Keep a reference
+            image_label.pack(expand=True)
+            
+            # Clear any error text from the container
+            container.config(text="", bg='lightgrey')
+            
+        except Exception as e:
+            container.config(text=f"Invalid Image", bg='red', fg='white')
+            print(f"Error loading image {image_path}: {e}")
 
     def _select_image(self, index):
         """Opens a file dialog to select an image."""
@@ -132,8 +183,8 @@ class MainWindow(tk.Tk):
         if file_path:
             page = self.pages[self.current_page_index]
             page.images[index] = file_path
-
-            # Directly update the image without redrawing the whole page
+            
+            # Immediately show the selected image
             placeholder = self.image_placeholders[index]
             self.show_image(placeholder, file_path)
 
@@ -261,6 +312,93 @@ class MainWindow(tk.Tk):
                 c.showPage()
             
             c.save()
-            messagebox.showinfo("Success", f"Successfully exported PDF to {file_path}")
+            messagebox.showinfo("Export Complete", f"PDF saved as {file_path}")
+            
+            # If this is connected to home window, also save the project
+            if self.home_window:
+                self.save_project()
+                
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export PDF: {e}")
+
+    def load_project(self, project_file):
+        """Load a project from a JSON file."""
+        try:
+            import json
+            with open(project_file, 'r') as f:
+                project_data = json.load(f)
+            
+            self.project_name = project_data.get('name', 'Untitled')
+            self.title(f"VMP Tool - {self.project_name}")
+            
+            # Load pages
+            pages_data = project_data.get('pages', [])
+            if pages_data:
+                self.pages = []
+                for page_data in pages_data:
+                    page = Page()
+                    page.bullets = page_data.get('bullets', ["", "", ""])
+                    page.images = page_data.get('images', [None, None])
+                    self.pages.append(page)
+            
+            self.current_page_index = 0
+            if hasattr(self, 'content_container'):  # Only if UI is set up
+                self.show_page()
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not load project: {str(e)}")
+
+    def save_project(self):
+        """Save the current project."""
+        if not self.home_window:
+            return
+            
+        try:
+            import json
+            from tkinter import simpledialog
+            
+            # Get project name if not set
+            if not self.project_name:
+                name = simpledialog.askstring("Save Project", "Enter project name:")
+                if not name:
+                    return
+                self.project_name = name
+                self.title(f"VMP Tool - {self.project_name}")
+            
+            # Prepare project data
+            project_data = {
+                'name': self.project_name,
+                'pages': []
+            }
+            
+            # Save current page data before saving
+            self.save_current_page_bullets()
+            
+            # Add all pages
+            for page in self.pages:
+                page_data = {
+                    'bullets': page.bullets,
+                    'images': page.images
+                }
+                project_data['pages'].append(page_data)
+            
+            # Save to home window
+            self.home_window.save_project(project_data, self.project_name)
+            messagebox.showinfo("Success", "Project saved successfully!")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not save project: {str(e)}")
+
+    def return_to_home(self):
+        """Return to the home window."""
+        if self.home_window:
+            self.destroy()
+            self.home_window.on_main_window_close()
+
+    def save_current_page_data(self):
+        """Save the current page's text data before switching pages or saving."""
+        if hasattr(self, 'bullet_entries') and self.bullet_entries:
+            page = self.pages[self.current_page_index]
+            for i, entry in enumerate(self.bullet_entries):
+                if i < len(page.bullets):
+                    page.bullets[i] = entry.get("1.0", tk.END).strip()
