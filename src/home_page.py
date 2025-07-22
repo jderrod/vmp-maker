@@ -3,20 +3,23 @@ from tkinter import ttk, messagebox
 import os
 import json
 from datetime import datetime
-from .main_window import MainWindow
+from .main_window import EditorPage
 
-class HomeWindow(tk.Tk):
+class HomePage(tk.Frame):
     """Home page for VMP Tool - manages projects and provides navigation."""
     
-    def __init__(self):
-        super().__init__()
-        self.title("VMP Tool - Home")
-        self.geometry("800x600")
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
         
-        # Create projects directory if it doesn't exist
-        self.projects_dir = os.path.join(os.getcwd(), "VMP-Projects")
+        # Create project and image directories if they don't exist
+        self.base_dir = os.getcwd()
+        self.projects_dir = os.path.join(self.base_dir, "VMP-Projects")
+        self.images_dir = os.path.join(self.base_dir, "VMP-Images")
         if not os.path.exists(self.projects_dir):
             os.makedirs(self.projects_dir)
+        if not os.path.exists(self.images_dir):
+            os.makedirs(self.images_dir)
         
         self.setup_ui()
         self.refresh_project_list()
@@ -42,11 +45,18 @@ class HomeWindow(tk.Tk):
         
         # Create New VMP button
         new_vmp_btn = tk.Button(buttons_frame, text="Create New VMP", 
-                               command=self.create_new_vmp,
+                               command=lambda: self.controller.show_frame("EditorPage"),
                                font=("Arial", 12, "bold"),
                                bg='#3498db', fg='white', 
                                padx=20, pady=10)
         new_vmp_btn.pack(side=tk.LEFT, padx=(0, 10))
+
+        import_images_btn = tk.Button(buttons_frame, text="Import Images",
+                                     command=self.import_images,
+                                     font=("Arial", 10),
+                                     bg='#1abc9c', fg='white',
+                                     padx=15, pady=8)
+        import_images_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         # Refresh button
         refresh_btn = tk.Button(buttons_frame, text="Refresh", 
@@ -169,41 +179,46 @@ class HomeWindow(tk.Tk):
                               bg='#e74c3c', fg='white', padx=15, pady=5)
         export_btn.pack(pady=2)
     
-    def create_new_vmp(self):
-        """Create a new VMP project."""
-        # Hide home window and open main window
-        self.withdraw()
-        main_window = MainWindow(home_window=self)
-        main_window.protocol("WM_DELETE_WINDOW", self.on_main_window_close)
+
     
     def open_project(self, filename):
         """Open an existing project."""
         project_path = os.path.join(self.projects_dir, filename)
-        try:
-            # Hide home window and open main window with project
-            self.withdraw()
-            main_window = MainWindow(home_window=self, project_file=project_path)
-            main_window.protocol("WM_DELETE_WINDOW", self.on_main_window_close)
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open project: {str(e)}")
+        self.controller.show_frame("EditorPage", project_file=project_path)
     
     def export_project_pdf(self, filename):
         """Export a project directly to PDF."""
         project_path = os.path.join(self.projects_dir, filename)
-        try:
-            # Create a temporary main window to handle the export
-            temp_window = MainWindow(project_file=project_path, export_only=True)
-            temp_window.withdraw()  # Hide it
-            temp_window.export_to_pdf()
-            temp_window.destroy()
-            messagebox.showinfo("Success", "PDF exported successfully!")
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not export PDF: {str(e)}")
+        # Switch to the editor, load the project, and then export
+        editor_frame = self.controller.frames['EditorPage']
+        editor_frame.load_data(project_path)
+        editor_frame.export_to_pdf()
     
-    def on_main_window_close(self):
-        """Handle main window closing - return to home."""
-        self.deiconify()  # Show home window again
-        self.refresh_project_list()  # Refresh in case new projects were saved
+
+
+    def import_images(self):
+        """Copy selected image files to the central VMP-Images library."""
+        from tkinter import filedialog
+        import shutil
+
+        file_paths = filedialog.askopenfilenames(
+            title="Select Images to Import",
+            filetypes=[("Image Files", "*.png *.jpg *.jpeg *.gif *.bmp")]
+        )
+
+        if not file_paths:
+            return
+
+        imported_count = 0
+        for file_path in file_paths:
+            try:
+                shutil.copy(file_path, self.images_dir)
+                imported_count += 1
+            except Exception as e:
+                print(f"Failed to import {os.path.basename(file_path)}: {e}")
+        
+        if imported_count > 0:
+            messagebox.showinfo("Import Complete", f"Successfully imported {imported_count} image(s).")
     
     def save_project(self, project_data, name=None):
         """Save a project to the projects directory."""

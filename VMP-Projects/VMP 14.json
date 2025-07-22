@@ -1,28 +1,22 @@
 {
-  "name": "VMP 14",
-  "pages": [
-    {
-      "bullets": [
-        "This is the first text box",
-        "This is the first text box\n",
-        "This is the first text box\n"
-      ],
-      "images": [
-        "C:/Users/james.derrod/OneDrive - Bobrick Washroom Equipment/Pictures/Screenshot 2025-05-29 150036.png",
-        "C:/Users/james.derrod/OneDrive - Bobrick Washroom Equipment/Pictures/Screenshot 2025-06-26 170213.png"
-      ]
-    },
-    {
-      "bullets": [
-        "This is the first text box",
-        "This is the first text box\n",
-        "This is the first text box\n"
-      ],
-      "images": [
-        "C:/Users/james.derrod/OneDrive - Bobrick Washroom Equipment/Pictures/Screenshots/Screenshot 2025-06-02 114909.png",
-        "C:/Users/james.derrod/OneDrive - Bobrick Washroom Equipment/Pictures/Screenshots/Screenshot 2025-06-02 115523.png"
-      ]
-    }
-  ],
-  "created": "2025-07-21 08:24:26"
+    "pages": [
+        {
+            "bullets": [
+                "tex",
+                "t",
+                "t"
+            ],
+            "image_path1": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-05-29 150028.png",
+            "image_path2": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png"
+        },
+        {
+            "bullets": [
+                "This is the first text box",
+                "This is the first text box\n",
+                "This is the first text box\n"
+            ],
+            "image_path1": null,
+            "image_path2": null
+        }
+    ]
 }
