@@ -1,0 +1,40 @@
+{
+    "pages": [
+        {
+            "page_type": "title",
+            "title": "VMP - Connection Cartoner to ProManage",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": null
+        },
+        {
+            "page_type": "full_image",
+            "title": "VMP - Connection Cartoner to ProManage",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\5059e4d2-0732-453f-a921-a24260c488f7.png"
+        },
+        {
+            "page_type": "standard",
+            "title": "",
+            "bullets": [
+                "Connect wire to cartoner",
+                "branch off signal",
+                "count in promanage"
+            ],
+            "image_path1": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png",
+            "image_path2": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png",
+            "full_image_path": null
+        }
+    ]
+}

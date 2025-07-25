@@ -114,7 +114,7 @@ class HomePage(tk.Frame):
         project_files = []
         if os.path.exists(self.projects_dir):
             for file in os.listdir(self.projects_dir):
-                if file.endswith('.json'):
+                if file.endswith('.vmp'):
                     project_files.append(file)
         
         project_files.sort(reverse=True)  # Most recent first
@@ -149,7 +149,7 @@ class HomePage(tk.Frame):
         info_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Project name
-        name = project_data.get('name', filename.replace('.json', ''))
+        name = project_data.get('name', filename.replace('.vmp', ''))
         name_label = tk.Label(info_frame, text=name, font=("Arial", 14, "bold"))
         name_label.pack(anchor=tk.W)
         
