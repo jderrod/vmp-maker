@@ -1,0 +1,55 @@
+{
+    "pages": [
+        {
+            "page_type": "title",
+            "title": "TestTest2",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": null,
+            "created_by": "James Derrod",
+            "date": "7/31/2025",
+            "version": "1",
+            "approved_by": "(unapproved)",
+            "approval_date": "(unapproved)"
+        },
+        {
+            "page_type": "full_image",
+            "title": "",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png",
+            "created_by": "",
+            "date": "",
+            "version": "",
+            "approved_by": "",
+            "approval_date": ""
+        },
+        {
+            "page_type": "standard",
+            "title": "",
+            "bullets": [
+                "1",
+                "2",
+                "3"
+            ],
+            "image_path1": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png",
+            "image_path2": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-03 134110.png",
+            "full_image_path": null,
+            "created_by": "",
+            "date": "",
+            "version": "",
+            "approved_by": "",
+            "approval_date": ""
+        }
+    ]
+}

@@ -1,0 +1,40 @@
+{
+    "pages": [
+        {
+            "page_type": "title",
+            "title": "MES - Machine Connectivity - Cartoner",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": null
+        },
+        {
+            "page_type": "full_image",
+            "title": "",
+            "bullets": [
+                "",
+                "",
+                ""
+            ],
+            "image_path1": null,
+            "image_path2": null,
+            "full_image_path": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\5059e4d2-0732-453f-a921-a24260c488f7.png"
+        },
+        {
+            "page_type": "standard",
+            "title": "",
+            "bullets": [
+                "Text box 1",
+                "160-8X3",
+                "160-8X3"
+            ],
+            "image_path1": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-03 134110.png",
+            "image_path2": "C:\\Users\\james.derrod\\VMP-Tool\\VMP-Images\\Screenshot 2025-06-26 170208.png",
+            "full_image_path": null
+        }
+    ]
+}

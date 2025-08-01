@@ -1,2 +1,4 @@
 Pillow==10.4.0
 fpdf2==2.7.8
+msal==1.26.0
+requests==2.31.0

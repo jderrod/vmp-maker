@@ -3,7 +3,62 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import json
-from .page import Page
+from .sharepoint_uploader import upload_to_sharepoint
+
+class Page:
+    def __init__(self, page_type='standard', title="", bullets=None, image_path1=None, image_path2=None, full_image_path=None, 
+                 created_by="", date="", version="", approved_by="", approval_date="",
+                 safety_warning=False, quality_check=False):
+        self.page_type = page_type
+        self.title = title
+        self.bullets = bullets if bullets is not None else ["", "", ""]
+        self.image_path1 = image_path1
+        self.image_path2 = image_path2
+        self.full_image_path = full_image_path
+        # New title page fields
+        self.created_by = created_by
+        self.date = date
+        self.version = version
+        self.approved_by = approved_by
+        self.approval_date = approval_date
+        # New warning/check fields
+        self.safety_warning = safety_warning
+        self.quality_check = quality_check
+
+    def to_dict(self):
+        return {
+            'page_type': self.page_type,
+            'title': self.title,
+            'bullets': self.bullets,
+            'image_path1': self.image_path1,
+            'image_path2': self.image_path2,
+            'full_image_path': self.full_image_path,
+            'created_by': self.created_by,
+            'date': self.date,
+            'version': self.version,
+            'approved_by': self.approved_by,
+            'approval_date': self.approval_date,
+            'safety_warning': self.safety_warning,
+            'quality_check': self.quality_check
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            page_type=data.get('page_type', 'standard'),
+            title=data.get('title', ''),
+            bullets=data.get('bullets', ["", "", ""]),
+            image_path1=data.get('image_path1'),
+            image_path2=data.get('image_path2'),
+            full_image_path=data.get('full_image_path'),
+            created_by=data.get('created_by', ''),
+            date=data.get('date', ''),
+            version=data.get('version', ''),
+            approved_by=data.get('approved_by', ''),
+            approval_date=data.get('approval_date', ''),
+            safety_warning=data.get('safety_warning', False),
+            quality_check=data.get('quality_check', False)
+        )
 
 class EditorPage(tk.Frame):
     """Editor page for VMP Tool - handles editing and page navigation."""
@@ -13,9 +68,28 @@ class EditorPage(tk.Frame):
         self.controller = controller
         self.images_dir = os.path.join(os.getcwd(), "VMP-Images")
         self.project_file = None
-        self.pages = [Page()]
+        # Create the initial page and apply a workaround for initialization issues
+        page = Page('title')
+        if not hasattr(page, 'created_by'):
+            page.created_by = ""
+            page.date = ""
+            page.version = ""
+            page.approved_by = ""
+            page.approval_date = ""
+        self.pages = [page]
         self.current_page_index = 0
         self.selected_gallery_image_path = None
+
+        # Initialize UI elements to None
+        self.title_text = None
+        self.created_by_entry = None
+        self.date_entry = None
+        self.version_entry = None
+        self.approved_by_entry = None
+        self.approval_date_entry = None
+
+        self.safety_var = tk.BooleanVar()
+        self.quality_var = tk.BooleanVar()
 
         self.setup_ui()
         self.show_page() # Show initial blank page
@@ -50,6 +124,9 @@ class EditorPage(tk.Frame):
         main_frame.grid_rowconfigure(0, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
 
+        self.warnings_container = tk.Frame(main_frame, bg='#ecf0f1')
+        self.warnings_container.pack(fill=tk.X, padx=10, pady=(10, 0))
+
         self.content_container = tk.Frame(main_frame, bg='#ecf0f1')
         self.content_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
@@ -74,6 +151,14 @@ class EditorPage(tk.Frame):
 
         self.next_btn = tk.Button(center_buttons, text="Next >", command=self.next_page)
         self.next_btn.pack(side=tk.LEFT, padx=5)
+
+        # Add checkboxes for warnings
+        warnings_frame = tk.Frame(center_buttons, bg='#bdc3c7')
+        warnings_frame.pack(side=tk.LEFT, padx=20)
+        self.safety_check = tk.Checkbutton(warnings_frame, text="Safety Warning", variable=self.safety_var, bg='#bdc3c7', command=self.update_warnings)
+        self.safety_check.pack(side=tk.LEFT)
+        self.quality_check = tk.Checkbutton(warnings_frame, text="Quality Check", variable=self.quality_var, bg='#bdc3c7', command=self.update_warnings)
+        self.quality_check.pack(side=tk.LEFT, padx=10)
 
         right_buttons = tk.Frame(nav_frame, bg='#bdc3c7')
         right_buttons.grid(row=0, column=2, padx=10, pady=5)
@@ -102,6 +187,10 @@ class EditorPage(tk.Frame):
 
         self.export_btn = tk.Button(right_buttons, text="Export to PDF", command=self.export_to_pdf)
         self.export_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.sharepoint_btn = tk.Button(right_buttons, text="Upload to SharePoint", command=self.upload_to_sharepoint,
+                                       bg='#0078d4', fg='white')
+        self.sharepoint_btn.pack(side=tk.LEFT, padx=5)
 
         self.setup_image_gallery(gallery_pane)
         self.update_navigation()
@@ -175,10 +264,13 @@ class EditorPage(tk.Frame):
 
     def show_page(self):
         """Displays the current page's content based on page type."""
-        self.save_current_page_data()
-
+        # Clear previous page's content and warnings first
         for widget in self.content_container.winfo_children():
             widget.destroy()
+        for widget in self.warnings_container.winfo_children():
+            widget.destroy()
+
+        self.update_navigation()
 
         page = self.pages[self.current_page_index]
         
@@ -186,6 +278,15 @@ class EditorPage(tk.Frame):
         self.bullet_texts = []
         self.title_text = None
         self.full_image_label = None
+        self.created_by_entry = None
+        self.date_entry = None
+        self.version_entry = None
+        self.approved_by_entry = None
+        self.approval_date_entry = None
+
+        self.safety_var.set(page.safety_warning)
+        self.quality_var.set(page.quality_check)
+        self.show_warning_indicators(page)
 
         if page.page_type == 'title':
             self.show_title_page(page)
@@ -193,24 +294,41 @@ class EditorPage(tk.Frame):
             self.show_standard_page(page)
         elif page.page_type == 'full_image':
             self.show_full_image_page(page)
-
-        self.update_navigation()
     
     def show_title_page(self, page):
-        """Display title page layout."""
-        title_frame = tk.Frame(self.content_container, bg='#ecf0f1')
-        title_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Center the title vertically and horizontally
-        title_frame.grid_rowconfigure(0, weight=1)
-        title_frame.grid_rowconfigure(2, weight=1)
-        title_frame.grid_columnconfigure(0, weight=1)
-        
-        tk.Label(title_frame, text="Title:", font=("Arial", 12, "bold"), bg='#ecf0f1').grid(row=1, column=0, pady=(0, 5))
-        
-        self.title_text = tk.Text(title_frame, height=3, width=60, wrap=tk.WORD, relief=tk.SUNKEN, borderwidth=1, font=("Arial", 16))
+        """Display title page layout with metadata fields."""
+        container = tk.Frame(self.content_container, bg='#ecf0f1')
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        container.grid_columnconfigure(0, weight=1)
+
+        # --- Title --- 
+        title_label = tk.Label(container, text="Procedure Title", font=("Arial", 14, "bold"), bg='#ecf0f1')
+        title_label.grid(row=0, column=0, sticky='w')
+        self.title_text = tk.Text(container, height=3, wrap=tk.WORD, relief=tk.SUNKEN, borderwidth=1, font=("Arial", 18, "bold"))
         self.title_text.insert(tk.END, page.title)
-        self.title_text.grid(row=2, column=0, pady=5)
+        self.title_text.grid(row=1, column=0, sticky='ew', pady=(0, 20))
+
+        # --- Metadata Frame ---
+        metadata_frame = tk.Frame(container, bg='#ecf0f1')
+        metadata_frame.grid(row=2, column=0, sticky='ew')
+        metadata_frame.grid_columnconfigure(1, weight=1)
+        metadata_frame.grid_columnconfigure(3, weight=1)
+
+        fields = {
+            "Created by:": (0, 0, 'created_by_entry', page.created_by),
+            "Date:": (1, 0, 'date_entry', page.date),
+            "Version:": (2, 0, 'version_entry', page.version),
+            "Approved by:": (0, 2, 'approved_by_entry', page.approved_by),
+            "Approval Date:": (1, 2, 'approval_date_entry', page.approval_date)
+        }
+
+        for label_text, (r, c, entry_attr, value) in fields.items():
+            label = tk.Label(metadata_frame, text=label_text, font=("Arial", 10), bg='#ecf0f1')
+            label.grid(row=r, column=c, sticky='w', padx=5, pady=5)
+            entry = tk.Entry(metadata_frame, font=("Arial", 10))
+            entry.insert(tk.END, value)
+            entry.grid(row=r, column=c + 1, sticky='ew', padx=5, pady=5)
+            setattr(self, entry_attr, entry)
     
     def show_standard_page(self, page):
         """Display standard page layout (3 bullets + 2 images)."""
@@ -278,6 +396,20 @@ class EditorPage(tk.Frame):
         label.bind("<Button-1>", lambda e: self.assign_image_to_placeholder('full'))
         self.full_image_label = label
 
+    def show_warning_indicators(self, page):
+        """Displays colored indicators based on page flags."""
+        if page.safety_warning:
+            safety_indicator = tk.Label(self.warnings_container, text="SAFETY WARNING", bg="#f1c40f", fg="#000000", font=("Arial", 10, "bold"))
+            safety_indicator.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        if page.quality_check:
+            quality_indicator = tk.Label(self.warnings_container, text="QUALITY CHECK", bg="#3498db", fg="#ffffff", font=("Arial", 10, "bold"))
+            quality_indicator.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+
+    def update_warnings(self):
+        """Called when a warning checkbox is clicked."""
+        self.save_current_page_data()
+        self.show_page()
+
     def save_current_page_data(self):
         """Saves the current page's data based on page type."""
         if not hasattr(self, 'pages') or not self.pages:
@@ -286,17 +418,30 @@ class EditorPage(tk.Frame):
         page = self.pages[self.current_page_index]
         
         # Save title page data
-        if hasattr(self, 'title_text') and self.title_text:
-            page.title = self.title_text.get("1.0", tk.END).strip()
+        if page.page_type == 'title':
+            if hasattr(self, 'title_text') and self.title_text:
+                page.title = self.title_text.get("1.0", tk.END).strip()
+            if hasattr(self, 'created_by_entry') and self.created_by_entry:
+                page.created_by = self.created_by_entry.get().strip()
+            if hasattr(self, 'date_entry') and self.date_entry:
+                page.date = self.date_entry.get().strip()
+            if hasattr(self, 'version_entry') and self.version_entry:
+                page.version = self.version_entry.get().strip()
+            if hasattr(self, 'approved_by_entry') and self.approved_by_entry:
+                page.approved_by = self.approved_by_entry.get().strip()
+            if hasattr(self, 'approval_date_entry') and self.approval_date_entry:
+                page.approval_date = self.approval_date_entry.get().strip()
+        
+        # Save warning/check data for all page types
+        page.safety_warning = self.safety_var.get()
+        page.quality_check = self.quality_var.get()
         
         # Save standard page data
         if hasattr(self, 'bullet_texts') and self.bullet_texts:
             for i in range(3):
                 page.bullets[i] = self.bullet_texts[i].get("1.0", tk.END).strip()
     
-    def save_current_page_bullets(self):
-        """Legacy method - calls save_current_page_data for compatibility."""
-        self.save_current_page_data()
+
 
     def update_navigation(self):
         """Updates the navigation buttons and page label."""
@@ -307,18 +452,18 @@ class EditorPage(tk.Frame):
 
     def next_page(self):
         if self.current_page_index < len(self.pages) - 1:
-            self.save_current_page_bullets()
+            self.save_current_page_data() # Save current page before moving
             self.current_page_index += 1
-            self.show_page()
+            self.show_page() # Then show the new page
 
     def prev_page(self):
         if self.current_page_index > 0:
-            self.save_current_page_bullets()
+            self.save_current_page_data() # Save current page before moving
             self.current_page_index -= 1
-            self.show_page()
+            self.show_page() # Then show the new page
 
     def add_page(self):
-        self.save_current_page_bullets()
+        self.save_current_page_data() # Save current page before adding a new one
         
         # Determine page type from dropdown
         page_type_map = {
@@ -342,7 +487,7 @@ class EditorPage(tk.Frame):
 
     def save_project(self):
         """Saves the entire project to a .vmp file."""
-        self.save_current_page_bullets()
+        self.save_current_page_data() # Ensure current page data is saved before serializing
         if not self.project_file:
             self.project_file = filedialog.asksaveasfilename(defaultextension=".vmp", filetypes=[("VMP Files", "*.vmp")], initialdir=os.path.join(os.getcwd(), "VMP-Projects"), title="Save Project As")
         if self.project_file:
@@ -360,16 +505,48 @@ class EditorPage(tk.Frame):
         try:
             with open(project_file, 'r') as f:
                 data = json.load(f)
-            self.pages = [Page.from_dict(pd) for pd in data['pages']]
+            self.pages = []
+            for page_data in data['pages']:
+                # Defensive loading: ensure new fields exist, providing defaults if not.
+                page_data.setdefault('created_by', '')
+                page_data.setdefault('date', '')
+                page_data.setdefault('version', '')
+                page_data.setdefault('approved_by', '')
+                page_data.setdefault('approval_date', '')
+                self.pages.append(Page.from_dict(page_data))
             self.project_file = project_file
             self.current_page_index = 0
             self.show_page()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load project: {e}")
 
+    def export_warning_indicators_to_pdf(self, pdf, page):
+        """Draws colored warning indicators at the top of a PDF page."""
+        initial_y = pdf.get_y()
+        indicator_height = 8
+        
+        if page.safety_warning:
+            pdf.set_fill_color(241, 196, 15) # Yellow
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, indicator_height, "SAFETY WARNING", 1, 1, 'C', fill=True)
+            pdf.ln(2)
+        
+        if page.quality_check:
+            pdf.set_fill_color(52, 152, 219) # Blue
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(0, indicator_height, "QUALITY CHECK", 1, 1, 'C', fill=True)
+            pdf.ln(2)
+
+        # Reset colors and font
+        pdf.set_fill_color(255, 255, 255)
+        pdf.set_text_color(0, 0, 0)
+        # pdf.set_y(initial_y + (12 * (int(page.safety_warning) + int(page.quality_check))))
+
     def export_to_pdf(self):
         """Exports the current project to a PDF file."""
-        self.save_current_page_bullets()
+        self.save_current_page_data()
         if not self.project_file:
             messagebox.showwarning("Save Required", "Please save the project before exporting.")
             self.save_project()
@@ -388,6 +565,7 @@ class EditorPage(tk.Frame):
 
         for i, page in enumerate(self.pages):
             pdf.add_page()
+            self.export_warning_indicators_to_pdf(pdf, page)
             
             if page.page_type == 'title':
                 self.export_title_page(pdf, page, i + 1)
@@ -403,25 +581,56 @@ class EditorPage(tk.Frame):
             messagebox.showerror("Error", f"Failed to export PDF: {e}")
     
     def export_title_page(self, pdf, page, page_num):
-        """Export a title page to PDF."""
-        # Center the title vertically and horizontally
-        pdf.set_font("Arial", 'B', 24)
-        
-        # Calculate vertical center
-        page_height = pdf.h - 30  # Account for margins
-        title_y = page_height / 2
-        
-        pdf.set_y(title_y)
+        """Export a title page with metadata to PDF."""
+        # --- Title ---
+        pdf.set_font("Arial", 'B', 28)
+        pdf.set_y(80)  # Position title to make space for metadata
         if page.title.strip():
-            pdf.cell(0, 15, page.title.strip(), 0, 1, 'C')
+            pdf.multi_cell(0, 15, page.title.strip(), 0, 'C')
         else:
-            pdf.cell(0, 15, "Untitled", 0, 1, 'C')
+            pdf.multi_cell(0, 15, "Untitled Procedure", 0, 'C')
+        pdf.ln(20)
+
+        # --- Metadata Table ---
+        pdf.set_font("Arial", '', 12)
+        
+        # Define column widths and positions
+        col_width = (pdf.w - 2 * 15) / 2  # Two columns
+        left_col_x = pdf.l_margin
+        right_col_x = left_col_x + col_width
+
+        # Store initial Y position to align columns
+        initial_y = pdf.get_y()
+        
+        # --- Left Column ---
+        pdf.set_x(left_col_x)
+        pdf.cell(30, 10, "Created by:", 0, 0)
+        pdf.cell(col_width - 30, 10, page.created_by, 0, 1)
+        
+        pdf.set_x(left_col_x)
+        pdf.cell(30, 10, "Date:", 0, 0)
+        pdf.cell(col_width - 30, 10, page.date, 0, 1)
+
+        pdf.set_x(left_col_x)
+        pdf.cell(30, 10, "Version:", 0, 0)
+        pdf.cell(col_width - 30, 10, page.version, 0, 1)
+
+        # --- Right Column ---
+        pdf.set_y(initial_y)  # Reset Y to align with the top of the left column
+        
+        pdf.set_x(right_col_x)
+        pdf.cell(35, 10, "Approved by:", 0, 0)
+        pdf.cell(col_width - 35, 10, page.approved_by, 0, 1)
+
+        pdf.set_x(right_col_x)
+        pdf.cell(35, 10, "Approval Date:", 0, 0)
+        pdf.cell(col_width - 35, 10, page.approval_date, 0, 1)
     
     def export_standard_page(self, pdf, page, page_num):
         """Export a standard page (3 bullets + 2 images) to PDF."""
         pdf.set_font("Arial", 'B', 16)
         pdf.cell(0, 10, f"Page {page_num}", 0, 1, 'C')
-        pdf.ln(10)
+        pdf.ln(5)
 
         col_width = (pdf.w - 2 * 15 - 10) / 2
         text_col_x = 15
@@ -504,3 +713,27 @@ class EditorPage(tk.Frame):
             pdf.set_font("Arial", '', 16)
             pdf.set_y(pdf.h / 2)
             pdf.cell(0, 10, "No image assigned", 0, 1, 'C')
+    
+    def upload_to_sharepoint(self):
+        """Upload the current project to SharePoint."""
+        # Save the project first if it hasn't been saved
+        if not self.project_file:
+            messagebox.showwarning("Save Required", "Please save the project before uploading to SharePoint.")
+            self.save_project()
+            if not self.project_file:  # User cancelled save
+                return
+        else:
+            # Save current changes
+            self.save_current_page_data()
+            try:
+                data = {'pages': [page.to_dict() for page in self.pages]}
+                with open(self.project_file, 'w') as f:
+                    json.dump(data, f, indent=4)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save project: {e}")
+                return
+        
+        try:
+            upload_to_sharepoint(self, self.project_file)
+        except Exception as e:
+            messagebox.showerror("Upload Error", f"Failed to upload to SharePoint: {str(e)}")

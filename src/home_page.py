@@ -4,6 +4,7 @@ import os
 import json
 from datetime import datetime
 from .main_window import EditorPage
+from .sharepoint_uploader import upload_to_sharepoint
 
 class HomePage(tk.Frame):
     """Home page for VMP Tool - manages projects and provides navigation."""
@@ -178,6 +179,12 @@ class HomePage(tk.Frame):
                               command=lambda f=filename: self.export_project_pdf(f),
                               bg='#e74c3c', fg='white', padx=15, pady=5)
         export_btn.pack(pady=2)
+        
+        # Upload to SharePoint button
+        sharepoint_btn = tk.Button(buttons_frame, text="Upload to SharePoint", 
+                                  command=lambda f=filename: self.upload_to_sharepoint(f),
+                                  bg='#0078d4', fg='white', padx=15, pady=5)
+        sharepoint_btn.pack(pady=2)
     
 
     
@@ -193,6 +200,14 @@ class HomePage(tk.Frame):
         editor_frame = self.controller.frames['EditorPage']
         editor_frame.load_data(project_path)
         editor_frame.export_to_pdf()
+    
+    def upload_to_sharepoint(self, filename):
+        """Upload a VMP project file to SharePoint."""
+        project_path = os.path.join(self.projects_dir, filename)
+        try:
+            upload_to_sharepoint(self, project_path)
+        except Exception as e:
+            messagebox.showerror("Upload Error", f"Failed to upload to SharePoint: {str(e)}")
     
 
 
